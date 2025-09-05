@@ -12,7 +12,7 @@ from csv_parser import CSVParser
 from duplicate_detector import DuplicateDetector
 from export_manager import ExportManager
 
-class DuplicateTicketApp:
+class ModernDuplicateTicketApp:
     """Modern, intuitive GUI application for duplicate ticket detection."""
     
     def __init__(self, root):
