@@ -161,13 +161,18 @@ class CSVRepairer:
             Tuple of (was_repaired: bool, message: str, repaired_file_path: Optional[str])
         """
         try:
-            # First, try to read the file normally
+            # First, try to read the file normally with full validation
             try:
-                df = pd.read_csv(filepath, encoding='utf-8', nrows=5)  # Just check first few rows
-                # If we can read it fine, no repair needed
-                return False, "File is already readable", filepath
+                df = pd.read_csv(filepath, encoding='utf-8')
+                # Check if it has the basic structure we need
+                if len(df.columns) >= 4 and len(df) > 0:
+                    # File appears to be readable and has data
+                    return False, "File is already readable", filepath
             except (UnicodeDecodeError, pd.errors.ParserError):
-                # File needs repair
+                # File definitely needs repair due to encoding or parsing issues
+                pass
+            except Exception:
+                # Other issues, try repair
                 pass
             
             if self.progress_callback:
@@ -185,8 +190,8 @@ class CSVRepairer:
             )
             
             if success and output_path:
-                # Rename temp file to replace original
-                if os.path.exists(temp_output):
+                # Rename temp file if needed
+                if output_path != temp_output and os.path.exists(output_path):
                     shutil.move(output_path, temp_output)
                     return True, f"Auto-repaired: {message}", temp_output
                 else:

@@ -40,13 +40,19 @@ class CSVParser:
                     # File loaded successfully without repair
                     self._finalize_loading()
                     return True, f"Successfully loaded {len(self.data)} tickets from {len(self.data['Site'].unique())} unique sites."
-            except (UnicodeDecodeError, pd.errors.ParserError, KeyError) as e:
+                else:
+                    # File loads but missing required columns
+                    if not auto_repair:
+                        return False, f"File validation failed: {validation_msg}"
+                    # Continue to repair section to see if repair can fix column issues
+                    
+            except (UnicodeDecodeError, pd.errors.ParserError) as e:
+                # File has encoding or parsing issues
                 if not auto_repair:
                     return False, f"File corrupted and auto-repair disabled: {str(e)}"
-                # File needs repair, continue to repair section
-                pass
-            
-            # Second attempt: try auto-repair if enabled
+                # Continue to repair section
+                
+            # Second attempt: try auto-repair if enabled and needed
             if auto_repair:
                 was_repaired, repair_message, repaired_path = self.csv_repairer.quick_repair_if_needed(file_path)
                 
@@ -68,6 +74,9 @@ class CSVParser:
                             
                     except Exception as e:
                         return False, f"Failed to load repaired file: {str(e)}"
+                elif not was_repaired:
+                    # File didn't need repair, but we got here, so there might be a validation issue
+                    return False, f"File validation failed: {validation_msg if 'validation_msg' in locals() else 'Unknown validation error'}"
                 else:
                     return False, f"Auto-repair failed: {repair_message}"
             
