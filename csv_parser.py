@@ -123,13 +123,20 @@ class CSVParser:
             Tuple of (success: bool, message: str)
         """
         try:
-            # Convert Created column to datetime
-            self.data['Created_dt'] = pd.to_datetime(self.data['Created'], format=self.DATE_FORMAT)
+            # Convert Created column to datetime, allowing errors to create NaT
+            self.data['Created_dt'] = pd.to_datetime(self.data['Created'], format=self.DATE_FORMAT, errors='coerce')
             
             # Check for any parsing failures (NaT values)
             failed_parsing = self.data['Created_dt'].isna().sum()
+            total_rows = len(self.data)
+            
             if failed_parsing > 0:
-                return False, f"Failed to parse {failed_parsing} date entries. Expected format: DD-Mon-YYYY HH:MM:SS"
+                if failed_parsing == total_rows:
+                    return False, f"All {total_rows} date entries failed to parse. Expected format: DD-Mon-YYYY HH:MM:SS"
+                else:
+                    # Allow some failures but warn the user
+                    success_rate = ((total_rows - failed_parsing) / total_rows) * 100
+                    return True, f"Date parsing completed with {success_rate:.1f}% success rate. {failed_parsing} entries have invalid dates and will be skipped."
             
             return True, "Date parsing successful."
             

@@ -158,8 +158,8 @@ class DuplicateTicketApp:
                                             style='Modern.TLabelframe')
         self.config_section.pack(fill='x', pady=(0, 20))
         
-        # Time windows with preset buttons
-        ttk.Label(self.config_section, text="Time Windows (hours):", 
+        # Maximum timeframe with preset buttons
+        ttk.Label(self.config_section, text="Maximum Timeframe (hours):", 
                  style='Subtitle.TLabel').pack(anchor='w', pady=(0, 8))
         
         # Preset buttons
@@ -168,22 +168,30 @@ class DuplicateTicketApp:
         
         presets = [
             ("Quick", "1"),
-            ("Standard", "1,8,24"),
-            ("Comprehensive", "1,8,24,72"),
-            ("Extended", "1,4,8,24,72,168")
+            ("Standard", "24"),
+            ("Comprehensive", "72"),
+            ("Extended", "168")
         ]
         
         for i, (name, value) in enumerate(presets):
             btn = ttk.Button(self.preset_frame, text=name,
-                           command=lambda v=value: self.set_time_windows(v),
+                           command=lambda v=value: self.set_max_timeframe(v),
                            style='Secondary.TButton')
             btn.pack(side='left', padx=(0, 5) if i < len(presets)-1 else 0)
         
-        # Custom time windows entry
-        self.time_windows_var = tk.StringVar(value="1, 8, 24, 72")
-        self.time_windows_entry = ttk.Entry(self.config_section, textvariable=self.time_windows_var,
-                                           font=('Segoe UI', 10))
-        self.time_windows_entry.pack(fill='x', pady=(0, 15))
+        # Custom timeframe entry with spinner
+        self.timeframe_frame = ttk.Frame(self.config_section)
+        self.timeframe_frame.pack(fill='x', pady=(0, 15))
+        
+        self.max_timeframe_var = tk.IntVar(value=72)
+        self.max_timeframe_spinbox = ttk.Spinbox(self.timeframe_frame, 
+                                                from_=1, to=8760,  # 1 hour to 1 year
+                                                textvariable=self.max_timeframe_var,
+                                                width=10, font=('Segoe UI', 10))
+        self.max_timeframe_spinbox.pack(side='left')
+        
+        ttk.Label(self.timeframe_frame, text="hours (finds all duplicates within this timeframe)",
+                 style='Info.TLabel').pack(side='left', padx=(10, 0))
         
         # Similarity threshold with visual feedback
         ttk.Label(self.config_section, text="Similarity Threshold:", 
@@ -223,7 +231,36 @@ class DuplicateTicketApp:
         self.auto_repair_check = ttk.Checkbutton(self.config_section,
                                                 text="Auto-repair corrupted CSV files",
                                                 variable=self.auto_repair_var)
-        self.auto_repair_check.pack(anchor='w')
+        self.auto_repair_check.pack(anchor='w', pady=(0, 15))
+        
+        # Enhanced Analysis Options
+        ttk.Label(self.config_section, text="📊 Enhanced Analysis (Excel Only):", 
+                 style='Subtitle.TLabel').pack(anchor='w', pady=(0, 8))
+        
+        # Enhanced analysis checkboxes
+        self.enable_same_day_var = tk.BooleanVar(value=False)
+        self.enable_same_day_check = ttk.Checkbutton(self.config_section,
+                                                    text="Same-day duplicates (ignore description similarity)",
+                                                    variable=self.enable_same_day_var)
+        self.enable_same_day_check.pack(anchor='w', pady=(0, 3))
+        
+        self.enable_rapid_fire_var = tk.BooleanVar(value=False)
+        self.enable_rapid_fire_check = ttk.Checkbutton(self.config_section,
+                                                      text="Rapid-fire duplicates (15-60 minute windows)",
+                                                      variable=self.enable_rapid_fire_var)
+        self.enable_rapid_fire_check.pack(anchor='w', pady=(0, 3))
+        
+        self.enable_exact_match_var = tk.BooleanVar(value=False)
+        self.enable_exact_match_check = ttk.Checkbutton(self.config_section,
+                                                       text="Exact content matches (100% identical descriptions)",
+                                                       variable=self.enable_exact_match_var)
+        self.enable_exact_match_check.pack(anchor='w', pady=(0, 3))
+        
+        self.enable_category_patterns_var = tk.BooleanVar(value=False)
+        self.enable_category_patterns_check = ttk.Checkbutton(self.config_section,
+                                                             text="Category patterns (same category/subcategory per day)",
+                                                             variable=self.enable_category_patterns_var)
+        self.enable_category_patterns_check.pack(anchor='w')
     
     def create_actions_section(self):
         """Create the actions section."""
@@ -285,22 +322,25 @@ class DuplicateTicketApp:
 
 📋 Quick Start:
 1. Click 'Select CSV File' to load your ServiceNow export
-2. Choose your analysis settings (presets available)
-3. Click 'Run Analysis' to detect duplicates
-4. Review results in the tabs above
-5. Export findings when ready
+2. Set maximum timeframe (how far back to search for duplicates)
+3. Adjust similarity threshold (85% recommended)
+4. Click 'Run Analysis' to detect duplicates
+5. Review results with time categories for easy grouping
+6. Export findings when ready
 
 💡 Tips:
-• Use 'Quick' preset for fast analysis
-• 'Standard' preset works well for most cases
-• Higher similarity thresholds = fewer, more precise matches
-• Lower similarity thresholds = more matches, some false positives
+• Quick (1h): Catches immediate duplicate submissions
+• Standard (24h): Finds duplicates within a business day
+• Comprehensive (72h): Includes weekend duplicates
+• Extended (168h): Full week analysis
+• Each duplicate pair appears only once (no time window overlap)
 
 🛠️ Features:
-• Automatic CSV repair for corrupted files
+• Maximum timeframe approach eliminates duplicate reporting
+• Automatic time categorization (0-1h, 1-4h, 4-8h, etc.)
 • Site-based grouping prevents cross-site matches
-• Multiple time window analysis
-• Export to CSV/Excel formats
+• Enhanced analysis options for Excel exports
+• Automatic CSV repair for corrupted files
         """
         
         ttk.Label(self.welcome_content, text=welcome_text.strip(),
@@ -341,9 +381,9 @@ class DuplicateTicketApp:
         self.status_var.set(f"Repair: {message}")
         self.root.update_idletasks()
     
-    def set_time_windows(self, value):
-        """Set time windows from preset."""
-        self.time_windows_var.set(value)
+    def set_max_timeframe(self, value):
+        """Set maximum timeframe from preset."""
+        self.max_timeframe_var.set(int(value))
     
     def update_similarity_label(self, value):
         """Update similarity threshold label with guidance."""
@@ -423,7 +463,7 @@ class DuplicateTicketApp:
         """Run the duplicate detection analysis."""
         try:
             # Parse configuration
-            time_windows = [int(w.strip()) for w in self.time_windows_var.get().split(',') if w.strip()]
+            max_timeframe = self.max_timeframe_var.get()
             similarity_threshold = self.similarity_var.get()
             exclude_resolved = self.exclude_resolved_var.get()
             
@@ -438,17 +478,41 @@ class DuplicateTicketApp:
                     "No Data", "No tickets to analyze after applying filters."))
                 return
             
-            # Create detector and run analysis
+            # Create detector and run enhanced analysis
             self.duplicate_detector = DuplicateDetector(self.progress_callback)
-            self.analysis_results = self.duplicate_detector.analyze(
-                data, time_windows, similarity_threshold
-            )
+            
+            # Check if any enhanced analysis is enabled
+            enable_enhanced = any([
+                self.enable_same_day_var.get(),
+                self.enable_rapid_fire_var.get(),
+                self.enable_exact_match_var.get(),
+                self.enable_category_patterns_var.get()
+            ])
+            
+            if enable_enhanced:
+                self.analysis_results = self.duplicate_detector.analyze_enhanced(
+                    data, max_timeframe, similarity_threshold,
+                    enable_same_day=self.enable_same_day_var.get(),
+                    enable_rapid_fire=self.enable_rapid_fire_var.get(),
+                    enable_exact_match=self.enable_exact_match_var.get(),
+                    enable_category_patterns=self.enable_category_patterns_var.get()
+                )
+                # Store results in new format for display
+                self.fuzzy_results = self.analysis_results['fuzzy_matching']
+            else:
+                # Use new single timeframe analysis
+                self.fuzzy_results = self.duplicate_detector.analyze(data, max_timeframe, similarity_threshold)
+                self.analysis_results = {'fuzzy_matching': self.fuzzy_results}
             
             # Update UI with results
             self.root.after(0, self.display_results)
             
+        except ValueError as e:
+            self.root.after(0, lambda: messagebox.showerror("Configuration Error", 
+                f"Please check your settings:\n{str(e)}"))
         except Exception as e:
-            self.root.after(0, lambda: messagebox.showerror("Analysis Error", str(e)))
+            error_msg = f"Analysis failed with an unexpected error:\n{str(e)}\n\nPlease check your CSV file format and try again."
+            self.root.after(0, lambda: messagebox.showerror("Analysis Error", error_msg))
         finally:
             self.root.after(0, lambda: self.set_analysis_running(False))
     
@@ -482,7 +546,21 @@ class DuplicateTicketApp:
             self.results_summary_var.set("No results to display")
             return
         
-        total_duplicates = sum(len(pairs) for pairs in self.analysis_results.values())
+        # Handle both enhanced and new single timeframe formats
+        if hasattr(self, 'fuzzy_results'):
+            # New format: list of duplicate pairs
+            total_duplicates = len(self.fuzzy_results) if self.fuzzy_results else 0
+        elif 'fuzzy_matching' in self.analysis_results:
+            # Enhanced results format
+            fuzzy_results = self.analysis_results['fuzzy_matching']
+            if isinstance(fuzzy_results, list):
+                total_duplicates = len(fuzzy_results)
+            else:
+                # Legacy multi-window format
+                total_duplicates = sum(len(pairs) for pairs in fuzzy_results.values()) if fuzzy_results else 0
+        else:
+            # Legacy format (backward compatibility)
+            total_duplicates = sum(len(pairs) for pairs in self.analysis_results.values())
         
         if total_duplicates == 0:
             self.results_summary_var.set("✅ No duplicate tickets found")
@@ -638,8 +716,39 @@ class DuplicateTicketApp:
             self.status_var.set("Exporting results...")
             self.root.update_idletasks()
             
-            df = self.duplicate_detector.export_results()
-            success, message = self.export_manager.export_data(df, file_path)
+            # Check if we have enhanced results and if Excel export is chosen
+            file_extension = os.path.splitext(file_path)[1].lower()
+            enable_enhanced = any([
+                self.enable_same_day_var.get(),
+                self.enable_rapid_fire_var.get(),
+                self.enable_exact_match_var.get(),
+                self.enable_category_patterns_var.get()
+            ])
+            
+            if enable_enhanced and file_extension in ['.xlsx', '.xls']:
+                # Use enhanced export with multiple sheets
+                success, message = self.export_manager.export_enhanced_data(
+                    self.analysis_results, file_path,
+                    enable_same_day=self.enable_same_day_var.get(),
+                    enable_rapid_fire=self.enable_rapid_fire_var.get(),
+                    enable_exact_match=self.enable_exact_match_var.get(),
+                    enable_category_patterns=self.enable_category_patterns_var.get()
+                )
+            else:
+                # Use standard export (CSV or single-sheet Excel)
+                if hasattr(self, 'fuzzy_results') and self.fuzzy_results:
+                    # New format: use the dedicated export method
+                    df = self.duplicate_detector.export_results_new(self.fuzzy_results)
+                elif 'fuzzy_matching' in self.analysis_results:
+                    # Enhanced format: convert back to standard DataFrame
+                    df = self.export_manager._convert_fuzzy_results_to_dataframe(
+                        self.analysis_results['fuzzy_matching']
+                    )
+                else:
+                    # Legacy format
+                    df = self.duplicate_detector.export_results()
+                
+                success, message = self.export_manager.export_data(df, file_path)
             
             if success:
                 self.status_var.set(f"✅ Results exported to {os.path.basename(file_path)}")
