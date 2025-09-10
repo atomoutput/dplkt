@@ -785,9 +785,9 @@ class DuplicateTicketApp:
         self.clear_button.configure(state='normal' if results_available else 'disabled')
 
 def main():
-    """Main entry point for the modern GUI."""
+    """Main entry point for the GUI."""
     root = tk.Tk()
-    app = ModernDuplicateTicketApp(root)
+    app = DuplicateTicketApp(root)
     
     try:
         root.mainloop()
